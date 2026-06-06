@@ -1,0 +1,55 @@
+# Configuracion principal del paquete Python.
+# Define dependencias, herramientas de calidad y metadata instalable del proyecto.
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sofia-ai-dataops"
+version = "0.1.0"
+description = "AI agent platform for analyzing Airflow incidents."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111.0",
+  "uvicorn[standard]>=0.30.0",
+  "pydantic>=2.7.0",
+  "pydantic-settings>=2.2.1",
+  "langgraph>=0.2.0",
+  "langchain-core>=0.2.0",
+  "langchain-openai>=0.1.8",
+  "qdrant-client>=1.9.1,<1.11.0",
+  "psycopg[binary,pool]>=3.1.19",
+  "SQLAlchemy>=2.0.30",
+  "structlog>=24.1.0",
+  "tenacity>=8.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.27.0",
+  "pytest>=8.2.0",
+  "pytest-asyncio>=0.23.0",
+  "ruff>=0.4.5",
+  "mypy>=1.10.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM", "C4", "PIE", "RET"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]

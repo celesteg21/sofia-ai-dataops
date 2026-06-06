@@ -1,0 +1,49 @@
+# Entorno local completo para desarrollo.
+# Levanta API, PostgreSQL y Qdrant con redes y volumenes administrados por Docker Compose.
+
+services:
+  api:
+    build:
+      context: .
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    command: uvicorn sofia_ai_dataops.api.app:create_app --factory --host 0.0.0.0 --port 8000 --reload
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sofia}
+      POSTGRES_USER: ${POSTGRES_USER:-sofia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sofia}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.7
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  postgres_data:
+  qdrant_data:
