@@ -20,3 +20,5 @@ class IncidentGraphState(TypedDict, total=False):
     summary: str
     root_cause: str
     recommendations: list[str]
+    # True cuando el LLM no esta disponible o falla y se usa el clasificador por keywords.
+    fallback_triggered: bool

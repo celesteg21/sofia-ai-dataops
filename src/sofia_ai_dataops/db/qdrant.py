@@ -1,26 +1,44 @@
 """Cliente de Qdrant para memoria semantica.
 
 Objetivo: encapsular busquedas de incidentes similares sin acoplar LangGraph al motor vectorial.
+Soporta embeddings semanticos via OpenAI o embeddings deterministicos locales como fallback.
 """
 
 import hashlib
 import math
 import re
+from typing import Protocol, runtime_checkable
 from uuid import UUID
 
+import structlog
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 
 from sofia_ai_dataops.core.config import Settings
 from sofia_ai_dataops.schemas.incidents import FailureType, IncidentAnalysisResponse
 
+_log = structlog.get_logger(__name__)
+
 TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9_]+")
 
 
+@runtime_checkable
+class EmbeddingsClient(Protocol):
+    """Protocolo para clientes de embeddings (compatible con OpenAIEmbeddings)."""
+
+    def embed_query(self, text: str) -> list[float]: ...
+
+
 class IncidentVectorStore:
-    def __init__(self, settings: Settings, client: QdrantClient | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        client: QdrantClient | None = None,
+        embeddings_client: EmbeddingsClient | None = None,
+    ) -> None:
         self._settings = settings
         self._client = client or QdrantClient(url=settings.qdrant_url)
+        self._embeddings_client = embeddings_client
 
     def search_similar(
         self,
@@ -32,12 +50,13 @@ class IncidentVectorStore:
             self._ensure_collection()
             result = self._client.query_points(
                 collection_name=self._settings.qdrant_collection,
-                query=_embed_text(query, dimensions=self._settings.qdrant_vector_size),
+                query=self._embed(query),
                 query_filter=_build_failure_type_filter(failure_type),
                 limit=limit,
                 with_payload=True,
             )
         except Exception:
+            _log.warning("qdrant_search_failed", exc_info=True)
             return []
 
         contexts: list[str] = []
@@ -54,10 +73,7 @@ class IncidentVectorStore:
                 points=[
                     models.PointStruct(
                         id=_uuid_to_qdrant_id(analysis.analysis_id),
-                        vector=_embed_text(
-                            _analysis_to_document(analysis),
-                            dimensions=self._settings.qdrant_vector_size,
-                        ),
+                        vector=self._embed(_analysis_to_document(analysis)),
                         payload={
                             "analysis_id": str(analysis.analysis_id),
                             "dag_id": analysis.dag_id,
@@ -75,6 +91,12 @@ class IncidentVectorStore:
                 ],
             )
         except Exception:
+            _log.warning(
+                "qdrant_index_failed",
+                analysis_id=str(analysis.analysis_id),
+                dag_id=analysis.dag_id,
+                exc_info=True,
+            )
             return
 
     def count_indexed(self) -> int:
@@ -86,9 +108,15 @@ class IncidentVectorStore:
                 exact=True,
             )
         except Exception:
+            _log.warning("qdrant_count_failed", exc_info=True)
             return 0
 
         return result.count
+
+    def _embed(self, text: str) -> list[float]:
+        if self._embeddings_client is not None:
+            return self._embeddings_client.embed_query(text)
+        return _embed_text_deterministic(text, dimensions=self._settings.qdrant_vector_size)
 
     def _ensure_collection(self) -> None:
         if self._client.collection_exists(self._settings.qdrant_collection):
@@ -103,7 +131,8 @@ class IncidentVectorStore:
         )
 
 
-def _embed_text(text: str, dimensions: int) -> list[float]:
+def _embed_text_deterministic(text: str, dimensions: int) -> list[float]:
+    """Embeddings deterministicos locales usados como fallback cuando no hay API key."""
     vector = [0.0] * dimensions
     for token in TOKEN_PATTERN.findall(text.lower()):
         digest = hashlib.sha256(token.encode("utf-8")).digest()

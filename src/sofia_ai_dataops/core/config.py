@@ -31,6 +31,8 @@ class Settings(BaseSettings):
 
     openai_api_key: str = Field(default="", repr=False)
     llm_model: str = "gpt-4.1-mini"
+    llm_temperature: float = 0.0
+    llm_max_retries: int = 3
     embedding_model: str = "text-embedding-3-small"
 
     @property
