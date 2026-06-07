@@ -5,21 +5,25 @@ Objetivo: conectar nodos de recuperacion, clasificacion y recomendacion en un wo
 
 from typing import Any, cast
 
+from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 
-from sofia_ai_dataops.agents.nodes.classify import classify_incident
-from sofia_ai_dataops.agents.nodes.recommend import recommend_actions
+from sofia_ai_dataops.agents.nodes.classify import make_classify_incident_node
+from sofia_ai_dataops.agents.nodes.recommend import make_recommend_actions_node
 from sofia_ai_dataops.agents.nodes.retrieve import make_retrieve_context_node
 from sofia_ai_dataops.agents.state import IncidentGraphState
 from sofia_ai_dataops.db.qdrant import IncidentVectorStore
 
 
-def build_incident_graph(vector_store: IncidentVectorStore) -> Any:
+def build_incident_graph(
+    vector_store: IncidentVectorStore,
+    chat_client: ChatOpenAI | None = None,
+) -> Any:
     graph = StateGraph(IncidentGraphState)
 
     graph.add_node("retrieve_context", cast(Any, make_retrieve_context_node(vector_store)))
-    graph.add_node("classify_incident", cast(Any, classify_incident))
-    graph.add_node("recommend_actions", cast(Any, recommend_actions))
+    graph.add_node("classify_incident", cast(Any, make_classify_incident_node(chat_client)))
+    graph.add_node("recommend_actions", cast(Any, make_recommend_actions_node(chat_client)))
 
     graph.set_entry_point("classify_incident")
     graph.add_edge("classify_incident", "retrieve_context")
