@@ -64,11 +64,15 @@ class IncidentAnalysisService:
         self._vector_store.index_analysis(response)
         log_incident_analyzed(payload.dag_id, payload.task_id, response.severity)
 
-        fallback_triggered = bool(result.get("fallback_triggered", False))
-        get_metrics_collector().record(
-            failure_type=response.failure_type,
-            severity=response.severity,
-            fallback_triggered=fallback_triggered,
-        )
+        # Las metricas son best-effort: nunca deben interrumpir la respuesta HTTP.
+        try:
+            fallback_triggered = bool(result.get("fallback_triggered", False))
+            get_metrics_collector().record(
+                failure_type=response.failure_type,
+                severity=response.severity,
+                fallback_triggered=fallback_triggered,
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
         return response

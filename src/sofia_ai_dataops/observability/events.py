@@ -6,7 +6,7 @@ incidentes analizados y ciclo de vida de cada nodo del grafo LangGraph.
 
 import structlog
 
-logger = structlog.get_logger()
+logger = structlog.get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------

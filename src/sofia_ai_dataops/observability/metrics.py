@@ -52,21 +52,24 @@ class MetricsCollector:
             )
 
     def snapshot(self) -> MetricsSnapshot:
-        """Devuelve un snapshot de metricas de las ultimas 24h y descarta entradas antiguas."""
-        cutoff = datetime.now(UTC) - timedelta(hours=_WINDOW_HOURS)
-        with self._lock:
-            recent = [e for e in self._entries if e.created_at >= cutoff]
-            self._entries = recent  # elimina entradas fuera de ventana
+        """Devuelve un snapshot de metricas de las ultimas 24h y descarta entradas antiguas.
 
+        La agregacion ocurre dentro del lock para garantizar consistencia incluso si
+        la estructura interna de _Entry se modifica en el futuro.
+        """
+        cutoff = datetime.now(UTC) - timedelta(hours=_WINDOW_HOURS)
         by_failure_type: dict[str, int] = defaultdict(int)
         by_severity: dict[str, int] = defaultdict(int)
         fallback_count = 0
 
-        for entry in recent:
-            by_failure_type[entry.failure_type] += 1
-            by_severity[entry.severity] += 1
-            if entry.fallback_triggered:
-                fallback_count += 1
+        with self._lock:
+            recent = [e for e in self._entries if e.created_at >= cutoff]
+            self._entries = recent  # elimina entradas fuera de ventana
+            for entry in recent:
+                by_failure_type[entry.failure_type] += 1
+                by_severity[entry.severity] += 1
+                if entry.fallback_triggered:
+                    fallback_count += 1
 
         return MetricsSnapshot(
             total_analyses=len(recent),
