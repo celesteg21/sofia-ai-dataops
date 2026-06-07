@@ -9,12 +9,13 @@ from uuid import UUID, uuid4
 from sofia_ai_dataops.db.postgres import IncidentAnalysisRepository
 from sofia_ai_dataops.db.qdrant import IncidentVectorStore
 from sofia_ai_dataops.observability.events import log_incident_analyzed
+from sofia_ai_dataops.observability.metrics import get_metrics_collector
 from sofia_ai_dataops.schemas.incidents import IncidentAnalysisRequest, IncidentAnalysisResponse
 
 
 class IncidentGraph(Protocol):
     async def ainvoke(self, input: dict[str, Any]) -> dict[str, Any]:
-        pass
+        ...
 
 
 class IncidentAnalysisService:
@@ -62,4 +63,12 @@ class IncidentAnalysisService:
         self._repository.save(response)
         self._vector_store.index_analysis(response)
         log_incident_analyzed(payload.dag_id, payload.task_id, response.severity)
+
+        fallback_triggered = bool(result.get("fallback_triggered", False))
+        get_metrics_collector().record(
+            failure_type=response.failure_type,
+            severity=response.severity,
+            fallback_triggered=fallback_triggered,
+        )
+
         return response

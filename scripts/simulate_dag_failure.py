@@ -17,7 +17,6 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 # agregar src/ al path para poder importar el paquete sin instalar
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -246,7 +245,7 @@ async def simulate_scenario(
     _divider(f"Escenario {index}/{total}: {name}")
 
     # --- Deteccion ---
-    _step("DETECCIÓN", f"Evento Airflow recibido via callback on_task_instance_failed")
+    _step("DETECCIÓN", "Evento Airflow recibido via callback on_task_instance_failed")
     _json(
         "payload",
         {
@@ -380,15 +379,20 @@ async def main() -> None:
 
     print()
     if repeat_analysis.retrieved_context:
+        count = len(repeat_analysis.retrieved_context)
         _step(
             "RECUPERACIÓN",
-            f"{GREEN}{BOLD}{len(repeat_analysis.retrieved_context)} incidente(s) similar(es) encontrado(s) en memoria:{RESET}",
+            f"{GREEN}{BOLD}{count} incidente(s) similar(es) encontrado(s) en memoria:{RESET}",
             GREEN,
         )
         for ctx in repeat_analysis.retrieved_context:
             print(f"  {GREEN}• {ctx}{RESET}")
     else:
-        _step("RECUPERACIÓN", f"{YELLOW}Sin contexto recuperado (embeddings deterministicos pueden no matchear){RESET}")
+        _step(
+            "RECUPERACIÓN",
+            f"{YELLOW}Sin contexto recuperado "
+            f"(embeddings deterministicos pueden no matchear){RESET}",
+        )
 
     # --- Resumen ---
     _divider("Resumen")
@@ -405,14 +409,17 @@ async def main() -> None:
     for ft, count in sorted(by_type.items()):
         print(f"    {count:2d}x  {ft}")
     print(f"\n  {BOLD}Por severidad:{RESET}")
-    for sev, count in sorted(by_sev.items(), key=lambda x: ["critical", "high", "medium", "low"].index(x[0]) if x[0] in ["critical", "high", "medium", "low"] else 99):
+    _ORDER = ["critical", "high", "medium", "low"]
+    for sev, count in sorted(
+        by_sev.items(), key=lambda x: _ORDER.index(x[0]) if x[0] in _ORDER else 99
+    ):
         color = _severity_color(sev)
         print(f"    {count:2d}x  {color}{sev}{RESET}")
 
     # validar que todos los escenarios pasaron
     failed = [
         s["name"]
-        for s, a in zip(SCENARIOS, analyses)
+        for s, a in zip(SCENARIOS, analyses, strict=True)
         if a.failure_type != s["expected_failure_type"] or a.severity != s["expected_severity"]
     ]
     print()

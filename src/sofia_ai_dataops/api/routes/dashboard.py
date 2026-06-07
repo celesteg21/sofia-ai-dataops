@@ -153,8 +153,12 @@ DASHBOARD_HTML = """
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 12px;
+    }
+
+    @media (max-width: 1200px) {
+      .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
 
     .metric, .panel {
@@ -492,10 +496,21 @@ DASHBOARD_HTML = """
     <main class="layout">
       <section class="main">
         <div class="metrics">
-          <div class="metric"><span>Incidentes</span><strong id="metricTotal">0</strong></div>
-          <div class="metric"><span>Criticos/Altos</span><strong id="metricHigh">0</strong></div>
-          <div class="metric"><span>Contexto</span><strong id="metricContext">0</strong></div>
-          <div class="metric"><span>Qdrant</span><strong id="metricQdrant">0</strong></div>
+          <div class="metric">
+            <span>Incidentes (24h)</span><strong id="metricTotal">0</strong>
+          </div>
+          <div class="metric">
+            <span>Criticos/Altos (24h)</span><strong id="metricHigh">0</strong>
+          </div>
+          <div class="metric">
+            <span>Con contexto</span><strong id="metricContext">0</strong>
+          </div>
+          <div class="metric">
+            <span>Qdrant</span><strong id="metricQdrant">0</strong>
+          </div>
+          <div class="metric">
+            <span>Fallbacks (24h)</span><strong id="metricFallback">0</strong>
+          </div>
         </div>
 
         <section class="panel">
@@ -568,7 +583,7 @@ DASHBOARD_HTML = """
   <div class="toast" id="toast"></div>
 
   <script>
-    const state = { incidents: [], selectedId: null, memory: null };
+    const state = { incidents: [], selectedId: null, memory: null, metrics: null };
 
     const qs = (selector) => document.querySelector(selector);
     const rows = qs("#incidentRows");
@@ -629,13 +644,24 @@ DASHBOARD_HTML = """
     }
 
     function renderMetrics() {
-      const highCount = state.incidents
-        .filter((item) => ["critical", "high"].includes(item.severity)).length;
+      // Contadores 24h desde /api/v1/metrics (fuente de verdad para total, high y fallbacks).
+      const m = state.metrics;
+      if (m) {
+        const highCount = (m.by_severity?.critical ?? 0) + (m.by_severity?.high ?? 0);
+        qs("#metricTotal").textContent = m.total_analyses ?? 0;
+        qs("#metricHigh").textContent = highCount;
+        qs("#metricFallback").textContent = m.fallback_triggered ?? 0;
+      } else {
+        // Fallback local mientras carga /metrics.
+        const highCount = state.incidents
+          .filter((item) => ["critical", "high"].includes(item.severity)).length;
+        qs("#metricTotal").textContent = state.incidents.length;
+        qs("#metricHigh").textContent = highCount;
+        qs("#metricFallback").textContent = "-";
+      }
+      // Context y Qdrant se calculan de los datos de incidents/memory (no estan en /metrics).
       const contextCount = state.incidents
         .filter((item) => (item.retrieved_context || []).length > 0).length;
-
-      qs("#metricTotal").textContent = state.incidents.length;
-      qs("#metricHigh").textContent = highCount;
       qs("#metricContext").textContent = contextCount;
       qs("#metricQdrant").textContent = state.memory?.qdrant_points ?? 0;
     }
@@ -754,12 +780,14 @@ DASHBOARD_HTML = """
 
     async function loadDashboard() {
       try {
-        const [incidents, memory] = await Promise.all([
+        const [incidents, memory, metricsData] = await Promise.all([
           fetchJson("/api/v1/incidents?limit=100"),
           fetchJson("/api/v1/memory/status"),
+          fetchJson("/api/v1/metrics").catch(() => null),  // no bloquea si falla
         ]);
         state.incidents = incidents;
         state.memory = memory;
+        state.metrics = metricsData;
         if (!state.selectedId && incidents.length > 0) {
           state.selectedId = incidents[0].analysis_id;
         }

@@ -1,7 +1,7 @@
 # Atajos de desarrollo para Sofia AI DataOps.
 # Objetivo: ejecutar tareas frecuentes sin recordar comandos largos.
 
-.PHONY: setup lint test run docker-up docker-down airflow-lab-up airflow-lab-down reindex-qdrant docker-reindex-qdrant
+.PHONY: setup lint test eval run docker-up docker-down airflow-lab-up airflow-lab-down reindex-qdrant docker-reindex-qdrant
 
 setup:
 	python -m pip install --upgrade pip
@@ -13,6 +13,9 @@ lint:
 
 test:
 	pytest
+
+eval:
+	pytest tests/evals/ -m eval -v --tb=short
 
 run:
 	uvicorn sofia_ai_dataops.api.app:create_app --factory --reload

@@ -41,6 +41,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+  "eval: harness de evaluacion offline (excluido de make test, requiere make eval)",
+]
+addopts = "-m 'not eval'"
 
 [tool.ruff]
 line-length = 100

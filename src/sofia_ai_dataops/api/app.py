@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from sofia_ai_dataops.api.routes import airflow, dashboard, health, incidents, memory
+from sofia_ai_dataops.api.routes import airflow, dashboard, health, incidents, memory, metrics
 from sofia_ai_dataops.core.config import Settings, get_settings
 from sofia_ai_dataops.core.logging import configure_logging
 
@@ -37,5 +37,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(airflow.router, prefix="/api/v1")
     app.include_router(incidents.router, prefix="/api/v1")
     app.include_router(memory.router, prefix="/api/v1")
+    app.include_router(metrics.router, prefix="/api/v1")
 
     return app

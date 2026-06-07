@@ -66,6 +66,7 @@ def _classify_with_llm(
         "failure_type": output.failure_type,
         "severity": output.severity,
         "summary": output.summary,
+        "fallback_triggered": False,
     }
 
 
@@ -103,6 +104,7 @@ def _classify_with_keywords(state: IncidentGraphState) -> IncidentGraphState:
         "failure_type": failure_type,
         "severity": severity,
         "summary": f"Airflow task failed with likely {failure_type} issue.",
+        "fallback_triggered": True,
     }
 
 
