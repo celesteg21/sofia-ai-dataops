@@ -21,7 +21,11 @@ def get_incident_service() -> IncidentAnalysisService:
     embeddings_client = get_embeddings_client(settings)
     vector_store = IncidentVectorStore(settings=settings, embeddings_client=embeddings_client)
     repository = IncidentAnalysisRepository(settings=settings)
-    graph = build_incident_graph(vector_store=vector_store, chat_client=chat_client)
+    graph = build_incident_graph(
+        vector_store=vector_store,
+        chat_client=chat_client,
+        llm_max_retries=settings.llm_max_retries,
+    )
     return IncidentAnalysisService(graph=graph, repository=repository, vector_store=vector_store)
 
 

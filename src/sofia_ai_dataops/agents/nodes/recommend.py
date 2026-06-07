@@ -49,13 +49,14 @@ class _RecommendationOutput(BaseModel):
 
 def make_recommend_actions_node(
     chat_client: ChatOpenAI | None = None,
+    max_retries: int = 3,
 ) -> Callable[[IncidentGraphState], IncidentGraphState]:
     """Construye el nodo de recomendaciones con o sin LLM."""
 
     def recommend_actions(state: IncidentGraphState) -> IncidentGraphState:
         if chat_client is not None:
             try:
-                return _recommend_with_llm(chat_client, state)
+                return _recommend_with_llm(chat_client, state, max_retries)
             except Exception:
                 _log.warning("llm_recommend_fallback", exc_info=True)
         return _recommend_with_defaults(state)
@@ -66,10 +67,12 @@ def make_recommend_actions_node(
 def _recommend_with_llm(
     chat_client: ChatOpenAI,
     state: IncidentGraphState,
+    max_retries: int,
 ) -> IncidentGraphState:
-    from sofia_ai_dataops.agents.llm import llm_retry
+    from sofia_ai_dataops.agents.llm import make_llm_retry
 
     structured_llm = chat_client.with_structured_output(_RecommendationOutput)
+    llm_retry = make_llm_retry(max_retries)
 
     @llm_retry
     def _invoke() -> _RecommendationOutput:

@@ -26,13 +26,14 @@ class _ClassificationOutput(BaseModel):
 
 def make_classify_incident_node(
     chat_client: ChatOpenAI | None = None,
+    max_retries: int = 3,
 ) -> Callable[[IncidentGraphState], IncidentGraphState]:
     """Construye el nodo de clasificacion con o sin LLM."""
 
     def classify_incident(state: IncidentGraphState) -> IncidentGraphState:
         if chat_client is not None:
             try:
-                return _classify_with_llm(chat_client, state)
+                return _classify_with_llm(chat_client, state, max_retries)
             except Exception:
                 _log.warning("llm_classify_fallback", exc_info=True)
         return _classify_with_keywords(state)
@@ -43,10 +44,12 @@ def make_classify_incident_node(
 def _classify_with_llm(
     chat_client: ChatOpenAI,
     state: IncidentGraphState,
+    max_retries: int,
 ) -> IncidentGraphState:
-    from sofia_ai_dataops.agents.llm import llm_retry
+    from sofia_ai_dataops.agents.llm import make_llm_retry
 
     structured_llm = chat_client.with_structured_output(_ClassificationOutput)
+    llm_retry = make_llm_retry(max_retries)
 
     @llm_retry
     def _invoke() -> _ClassificationOutput:

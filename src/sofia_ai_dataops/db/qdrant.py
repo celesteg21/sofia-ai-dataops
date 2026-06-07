@@ -10,11 +10,14 @@ import re
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
+import structlog
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 
 from sofia_ai_dataops.core.config import Settings
 from sofia_ai_dataops.schemas.incidents import FailureType, IncidentAnalysisResponse
+
+_log = structlog.get_logger(__name__)
 
 TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9_]+")
 
@@ -53,6 +56,7 @@ class IncidentVectorStore:
                 with_payload=True,
             )
         except Exception:
+            _log.warning("qdrant_search_failed", exc_info=True)
             return []
 
         contexts: list[str] = []
@@ -87,6 +91,12 @@ class IncidentVectorStore:
                 ],
             )
         except Exception:
+            _log.warning(
+                "qdrant_index_failed",
+                analysis_id=str(analysis.analysis_id),
+                dag_id=analysis.dag_id,
+                exc_info=True,
+            )
             return
 
     def count_indexed(self) -> int:
@@ -98,6 +108,7 @@ class IncidentVectorStore:
                 exact=True,
             )
         except Exception:
+            _log.warning("qdrant_count_failed", exc_info=True)
             return 0
 
         return result.count
