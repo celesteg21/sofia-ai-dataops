@@ -1,0 +1,6 @@
+2026-06-05 03:10:00 INFO  [daily_revenue] Pipeline started
+2026-06-05 03:10:01 INFO  [daily_revenue] Checking upstream dependencies...
+2026-06-05 03:10:02 INFO  [daily_revenue] Querying raw.transactions for partition dt=2026-06-04
+2026-06-05 03:10:03 ERROR [daily_revenue] PartitionNotFoundError: Partition dt=2026-06-04 does not exist in table raw.transactions
+2026-06-05 03:10:03 ERROR [daily_revenue] Pipeline failed after 3s. Exit code: 1
+2026-06-05 03:10:04 INFO  [daily_revenue] Sending alert to #data-platform-oncall

@@ -1,0 +1,18 @@
+{
+  "name": "stale_data",
+  "triggers": [
+    "StaleDataError",
+    "data is stale",
+    "freshness check failed",
+    "data not refreshed",
+    "last updated",
+    "data lag",
+    "SLO breach",
+    "freshness SLO"
+  ],
+  "description": "Pipeline produces output but the data has not been refreshed within the expected SLO window. Downstream consumers receive outdated data, which can distort reports, dashboards and automated decisions based on them.",
+  "immediate_action": "1. Check the last successful run timestamp in the orchestrator.\n2. Identify whether the pipeline ran but produced no new rows, or if it did not run at all.\n3. If the pipeline did not run: inspect scheduler logs for missed triggers or resource exhaustion.\n4. If it ran but produced stale output: check the source system for upstream delays.\n5. Trigger a manual backfill run for the affected date partitions.\n6. Notify downstream consumers and mark reports as 'data under review' until resolved.",
+  "prevention": "Define explicit freshness SLOs per pipeline and enforce them with automated quality checks on each run. Set up alerting at 80% of the SLO window so the team can investigate before a breach occurs. Document source system schedules and create dependency maps so upstream delays are detected proactively.",
+  "severity": "medium",
+  "estimated_resolution_minutes": 90
+}

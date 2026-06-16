@@ -1,0 +1,19 @@
+{
+  "name": "connection_timeout",
+  "triggers": [
+    "ConnectionTimeoutError",
+    "connection timed out",
+    "timeout",
+    "connection refused",
+    "OperationalError",
+    "could not connect",
+    "connection reset",
+    "network unreachable",
+    "socket timeout"
+  ],
+  "description": "Pipeline fails because it cannot establish or maintain a connection to a required external system (database, API, object storage). This is often transient (network blip, brief service overload) but can indicate persistent infrastructure issues.",
+  "immediate_action": "1. Verify that the target service is reachable: ping host, check cloud console for service health.\n2. Review connection pool settings — exhausted pools can cause apparent timeouts under load.\n3. Check for recent network changes or security group/firewall rule modifications.\n4. Retry the pipeline once manually. If it succeeds, the issue was transient.\n5. If it fails again: escalate to infrastructure team with the full stack trace and timestamp.\n6. If the target is a managed cloud service, open a support ticket with the provider.",
+  "prevention": "Implement exponential back-off with jitter for all external connections. Set per-request and per-connection timeouts explicitly — never rely on OS defaults. Add a connection health-check step at pipeline startup so failures are caught early, before downstream processing begins. Monitor connection pool utilization with alerts at 70% capacity.",
+  "severity": "high",
+  "estimated_resolution_minutes": 30
+}

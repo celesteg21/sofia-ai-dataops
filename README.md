@@ -1,36 +1,18 @@
-<!--
-  README principal del proyecto.
-  Objetivo: explicar como levantar Sofia AI DataOps y orientar a nuevas personas del equipo.
--->
-
 # Sofia AI DataOps
 
-Plataforma para analizar incidentes de Airflow usando agentes de IA.
+Sofia is an AI resolution platform for DataOps — focused on diagnosing, resolving, and preventing incidents in data ecosystems.
+
+When a pipeline fails, engineers spend hours gathering context across logs, metadata, runbooks, and data quality results. Sofia does that automatically and returns a structured diagnosis: what broke, why, what to do now, and how to prevent it from happening again.
 
 ## Stack
 
 - Python 3.11
 - FastAPI
-- LangGraph
-- Qdrant
-- PostgreSQL
-- Docker
+- Pydantic v2
+- Docker / Docker Compose
+- Mock LLM (no model required) — prepared for Ollama
 
-## Arquitectura inicial
-
-```text
-src/sofia_ai_dataops/
-  api/              FastAPI app, rutas y dependencias HTTP
-  agents/           Grafo LangGraph para diagnostico de incidentes
-  core/             Configuracion, logging y wiring de dependencias
-  db/               Clientes de PostgreSQL y Qdrant
-  ingestion/        Normalizacion de logs/eventos de Airflow
-  observability/    Hooks para trazas, metricas y logs estructurados
-  schemas/          Contratos Pydantic de entrada/salida
-  services/         Casos de uso de negocio
-```
-
-## Desarrollo local
+## Quickstart
 
 ```bash
 cp .env.example .env
@@ -38,9 +20,33 @@ make setup
 make run
 ```
 
-La API queda disponible en `http://localhost:8000`.
+API is available at `http://localhost:8000`.
 
-La consola inicial queda disponible en `http://localhost:8000/dashboard`.
+## Test the endpoint
+
+```bash
+curl -X POST http://localhost:8000/incidents/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"incident_id": "inc_001"}'
+```
+
+Response:
+
+```json
+{
+  "incident_id": "inc_001",
+  "summary": "Pipeline 'daily_revenue' failed. Error: PartitionNotFoundError...",
+  "probable_root_cause": "Table raw.transactions last updated 2026-06-03. Expected freshness: 2h. Actual lag: 29h.",
+  "evidence": [
+    "ERROR [daily_revenue] PartitionNotFoundError: Partition dt=2026-06-04 does not exist...",
+    "Data quality: Table raw.transactions last updated 2026-06-03..."
+  ],
+  "business_impact": "Reports at risk: Revenue Dashboard, CFO Daily Brief.",
+  "recommended_action": "1. Check status of ingestion_transactions...",
+  "long_term_improvement": "Add a freshness check sensor before running dependent report pipelines.",
+  "confidence": "medium"
+}
+```
 
 ## Docker
 
@@ -49,66 +55,74 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Servicios:
-
-- API: `http://localhost:8000`
-- Dashboard: `http://localhost:8000/dashboard`
-- PostgreSQL: `localhost:5432`
-- Qdrant: `http://localhost:6333`
-
-Sofia indexa cada analisis en Qdrant con embeddings deterministas locales para recuperar incidentes
-similares en ejecuciones posteriores. La busqueda filtra por `failure_type` cuando ya se conoce el
-tipo de falla. Mas adelante esta pieza puede cambiar a embeddings de modelo.
-
-Para reconstruir la memoria Qdrant desde los analisis guardados en PostgreSQL:
+To run with a local Ollama model:
 
 ```bash
-make docker-reindex-qdrant
+docker compose --profile ollama up --build
+# Then set LLM_BACKEND=ollama in .env
 ```
 
-## Airflow Failure Lab
+## Endpoints
 
-Para simular DAGs fallidos y enviar incidentes reales a Sofia:
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check |
+| `POST` | `/incidents/analyze` | Analyze an incident by ID |
 
-```bash
-make airflow-lab-up
+## Project Structure
+
+```
+app/
+  main.py                   FastAPI app
+  api/routes.py             Endpoints
+  core/config.py            Settings (env vars)
+  core/schemas.py           Pydantic input/output contracts
+  services/
+    incident_service.py     Main analysis flow
+    context_service.py      Gathers context from all tools
+    recommendation_service.py  Delegates to LLM
+    llm_service.py          Abstract LLM + Mock + Ollama stub
+  tools/
+    log_reader.py           Reads pipeline logs
+    metadata_reader.py      Reads pipeline metadata
+    runbook_reader.py       Keyword-based runbook lookup
+    orchestrator_adapter.py Base interface for orchestrator integrations
+  mock_environment/
+    incidents/              Incident definitions (JSON)
+    logs/                   Pipeline execution logs
+    metadata/               Pipeline metadata and dependencies
+    runbooks/               Structured remediation playbooks
+    quality_results/        Data quality check outputs
+tests/
+  test_incident_service.py
+  test_context_service.py
+docs/
+  architecture.md
+  roadmap.md
+  product_vision.md
 ```
 
-Servicios adicionales:
+## Adding a new incident
 
-- Airflow: `http://localhost:8080`
-- Usuario: `admin`
-- Password: `admin`
+1. Create `app/mock_environment/incidents/<id>.json`
+2. Optionally add matching files under `logs/`, `metadata/`, `runbooks/`, `quality_results/`
+3. Call `POST /incidents/analyze` with `{"incident_id": "<id>"}`
 
-Ver guia completa en `docs/airflow-lab.md`.
-
-## Endpoints iniciales
-
-- `GET /health`
-- `POST /api/v1/airflow/task-failures`
-- `GET /api/v1/incidents`
-- `GET /api/v1/incidents/{analysis_id}`
-- `POST /api/v1/incidents/analyze`
-- `GET /api/v1/memory/status`
-- `POST /api/v1/memory/reindex`
-
-Ejemplo:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/incidents/analyze \
-  -H "Content-Type: application/json" \
-  -d '{
-    "dag_id": "daily_sales",
-    "task_id": "load_warehouse",
-    "run_id": "manual__2026-06-04T00:00:00+00:00",
-    "logs": "psycopg.errors.ConnectionTimeout: could not connect to server",
-    "metadata": {"owner": "data-platform"}
-  }'
-```
-
-## Calidad
+## Quality
 
 ```bash
 make lint
 make test
 ```
+
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for the layer diagram and design decisions.
+
+## Roadmap
+
+See [docs/roadmap.md](docs/roadmap.md) for V0.1 through V1.0.
+
+## Product Vision
+
+See [docs/product_vision.md](docs/product_vision.md) for the full vision and design principles.

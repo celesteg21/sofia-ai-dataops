@@ -1,0 +1,12 @@
+{
+  "pipeline": "daily_revenue",
+  "type": "report",
+  "schedule": "0 3 * * *",
+  "depends_on_tables": ["raw.transactions"],
+  "depends_on_pipelines": ["ingestion_transactions"],
+  "output_tables": ["reporting.daily_revenue"],
+  "downstream_reports": ["Revenue Dashboard", "CFO Daily Brief"],
+  "partition_key": "dt",
+  "expected_freshness_hours": 2,
+  "sla_minutes": 60
+}

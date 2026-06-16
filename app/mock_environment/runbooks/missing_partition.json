@@ -1,0 +1,7 @@
+{
+  "name": "missing_partition",
+  "triggers": ["PartitionNotFoundError", "missing partition", "partition not found"],
+  "description": "Pipeline fails because a required partition is missing in an upstream table. Usually caused by a delayed or failed ingestion pipeline.",
+  "immediate_action": "1. Check status of ingestion_transactions for the missing date.\n2. If failed: rerun ingestion_transactions for dt=2026-06-04.\n3. Validate partition: SELECT COUNT(*) FROM raw.transactions WHERE dt='2026-06-04'.\n4. Rerun daily_revenue pipeline once partition is confirmed.",
+  "prevention": "Add a freshness check sensor (e.g. PartitionSensor or ExternalTaskSensor) before running dependent report pipelines. Alert if ingestion is delayed beyond the defined SLA."
+}
