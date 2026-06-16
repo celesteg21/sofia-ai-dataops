@@ -1,0 +1,11 @@
+{
+  "incident_id": "inc_001",
+  "pipeline": "daily_revenue",
+  "pipeline_type": "report",
+  "status": "failed",
+  "failed_at": "2026-06-05T03:14:22Z",
+  "error_message": "PartitionNotFoundError: Partition dt=2026-06-04 does not exist in table raw.transactions",
+  "depends_on": ["ingestion_transactions"],
+  "owner": "data-platform",
+  "severity": "high"
+}

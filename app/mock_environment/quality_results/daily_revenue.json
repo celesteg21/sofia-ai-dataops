@@ -1,0 +1,11 @@
+{
+  "pipeline": "daily_revenue",
+  "check_type": "freshness",
+  "status": "failed",
+  "checked_at": "2026-06-05T03:00:00Z",
+  "table": "raw.transactions",
+  "partition": "dt=2026-06-04",
+  "detail": "Table raw.transactions last updated 2026-06-03T22:00:00Z. Expected freshness: 2h. Actual lag: 29h.",
+  "threshold_hours": 2,
+  "actual_lag_hours": 29
+}

@@ -14,5 +14,4 @@ htmlcov/
 dist/
 build/
 *.egg-info/
-.qdrant/
-.postgres/
+.vscode/
